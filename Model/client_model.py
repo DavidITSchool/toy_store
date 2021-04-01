@@ -90,3 +90,72 @@ class ClientFileModel:
             if client.get_cnp() == cnp:
                 return True
         return False
+
+class ClientSQLModel:
+    def __init__(self):
+        self.__engine = engine
+
+    def get_all_clients(self):
+        return self.read_clients()
+
+    def create_client(self, cnp, last_name, first_name, email):
+
+        age_group = Client.get_age_group(cnp)
+
+        with self.__engine.connect() as conn:
+            conn.execute(text(f"INSERT INTO clients (cnp, first_name, last_name, age_group, email) "
+                              f"VALUES ('{cnp}', '{first_name}', '{last_name}', '{age_group}', '{email}')"))
+
+    def read_clients(self):
+        all_clients = []
+        with self.__engine.connect() as conn:
+            query = conn.execute(text('SELECT * FROM clients'))
+            for item in query:
+                client = Client(
+                    cnp=item[0],
+                    first_name=item[1],
+                    last_name=item[2],
+                    email=item[4],
+                )
+                all_clients.append(client)
+        return all_clients
+
+    def update_client(self, cnp, last_name, first_name, email):
+        with self.__engine.connect() as conn:
+            query = conn.execute(text(f'SELECT * FROM clients WHERE cnp = {cnp}'))
+            values = query.first()
+            if values:
+                _, current_first_name, current_last_name, _, current_email, _ = values
+                conn.execute(text(f'UPDATE clients '
+                                  f'SET last_name = "{last_name or current_last_name}", '
+                                  f'first_name = "{first_name or current_first_name}", '
+                                  f'email = "{email or current_email}" '
+                                  f'WHERE cnp = "{cnp}"'
+                                  ))
+
+    def delete_client(self, cnp):
+        with self.__engine.connect() as conn:
+            result = conn.execute(text(f'DELETE FROM clients WHERE cnp = {cnp}'))
+
+    def find_by_id(self, cnp):
+        with self.__engine.connect() as conn:
+            query = conn.execute(text(f'SELECT * FROM clients WHERE cnp = {cnp}'))
+            client_data = query.first()
+            if client_data:
+                cnp, last_name, first_name, _, email, _ = client_data
+                client = Client(
+                    cnp=cnp,
+                    first_name=first_name,
+                    last_name=last_name,
+                    email=email,
+                )
+                return client
+        return None
+
+    def id_exists(self, cnp):
+        with self.__engine.connect() as conn:
+            query = conn.execute(text(f'SELECT * FROM clients WHERE cnp = {cnp}'))
+            client_data = query.first()
+            if client_data:
+                return True
+        return False
